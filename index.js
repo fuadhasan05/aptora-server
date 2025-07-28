@@ -45,6 +45,7 @@ const client = new MongoClient(process.env.MONGODB_URI, {
 async function run() {
   const db = client.db("Aptora");
   const usersCollection = db.collection("users");
+  const apartmentsCollection = db.collection("apertments");
 
   try {
     // Generate jwt token
@@ -98,6 +99,12 @@ async function run() {
       res.send(result);
     });
 
+    // Get all apartments
+    app.get("/apertments", async (req, res) => {
+      const apartments = await apartmentsCollection.find().toArray();
+      res.send(apartments);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -110,9 +117,9 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Hello from plantNet Server..");
+  res.send("Hello from Aptora Server..");
 });
 
 app.listen(port, () => {
-  console.log(`plantNet is running on port ${port}`);
+  console.log(`Aptora is running on port ${port}`);
 });
