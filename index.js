@@ -46,6 +46,7 @@ async function run() {
   const db = client.db("Aptora");
   const usersCollection = db.collection("users");
   const apartmentsCollection = db.collection("apertments");
+  const agreementsCollection = db.collection("agreements");
 
   try {
     // Generate jwt token
@@ -97,6 +98,16 @@ async function run() {
 
       const result = await usersCollection.insertOne(userData);
       res.send(result);
+    });
+
+    // get a user's role
+    app.get("/user/role/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email });
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      res.send({ role: user?.role });
     });
 
     // Get all apartments
