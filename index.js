@@ -225,6 +225,21 @@ async function run() {
       }
     });
 
+    // Get coupon by code
+    app.get("/coupons/:code", async (req, res) => {
+      const code = req.params.code.toUpperCase(); // Ensure uppercase
+      try {
+        const coupon = await couponsCollection.findOne({ code });
+        if (!coupon) {
+          return res.status(404).send({ message: "Coupon not found" });
+        }
+        res.send(coupon);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to fetch coupon" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
