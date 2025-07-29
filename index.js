@@ -47,6 +47,7 @@ async function run() {
   const usersCollection = db.collection("users");
   const apartmentsCollection = db.collection("apertments");
   const agreementsCollection = db.collection("agreements");
+  const announcementsCollection = db.collection("announcements");
 
   try {
     // Generate jwt token
@@ -139,6 +140,20 @@ async function run() {
     app.get("/apertments", async (req, res) => {
       const apartments = await apartmentsCollection.find().toArray();
       res.send(apartments);
+    });
+
+    // Get all announcements
+    app.get("/announcements", async (req, res) => {
+      const announcements = await announcementsCollection.find().sort({ date: -1 }).toArray();
+      res.send(announcements);
+    });
+
+    // Post an announcement
+    app.post("/announcements", verifyToken, async (req, res) => {
+      const announcement = req.body;
+      announcement.date = new Date();
+      const result = await announcementsCollection.insertOne(announcement);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
