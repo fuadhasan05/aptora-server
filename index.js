@@ -48,6 +48,7 @@ async function run() {
   const apartmentsCollection = db.collection("apertments");
   const agreementsCollection = db.collection("agreements");
   const announcementsCollection = db.collection("announcements");
+  const couponsCollection = db.collection("coupons");
 
   try {
     // Generate jwt token
@@ -195,6 +196,28 @@ async function run() {
         { $set: { status } }
       );
       res.json({ success: result.modifiedCount > 0 });
+    });
+
+    // Get all coupons
+    app.get("/coupons", async (req, res) => {
+      try {
+        const coupons = await couponsCollection.find().toArray();
+        res.send(coupons);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to fetch coupons" });
+      }
+    });
+
+    // Add a new coupon
+    app.post("/coupons", async (req, res) => {
+      try {
+        const couponData = req.body;
+        couponData.date = new Date();
+        const result = await couponsCollection.insertOne(couponData);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to add coupon" });
+      }
     });
 
     // Send a ping to confirm a successful connection
