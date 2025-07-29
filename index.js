@@ -144,7 +144,10 @@ async function run() {
 
     // Get all announcements
     app.get("/announcements", async (req, res) => {
-      const announcements = await announcementsCollection.find().sort({ date: -1 }).toArray();
+      const announcements = await announcementsCollection
+        .find()
+        .sort({ date: -1 })
+        .toArray();
       res.send(announcements);
     });
 
@@ -154,6 +157,44 @@ async function run() {
       announcement.date = new Date();
       const result = await announcementsCollection.insertOne(announcement);
       res.send(result);
+    });
+
+    // Create an agreement request
+    app.post("/agreements", async (req, res) => {
+      const { userEmail, apartmentNo } = req.body;
+
+      // Check if user already applied for this apartment
+      const existing = await agreementsCollection.findOne({
+        userEmail,
+        apartmentNo,
+      });
+      if (existing) {
+        return res.json({
+          success: false,
+          message: "You have already applied for this apartment.",
+        });
+      }
+
+      // Insert new agreement
+      const result = await agreementsCollection.insertOne(req.body);
+      res.json({ success: true, data: result });
+    });
+
+    // Get all agreement requests
+    app.get("/agreements", async (req, res) => {
+      const agreements = await agreementsCollection.find().toArray();
+      res.json(agreements);
+    });
+
+    // Accept an agreement request
+    app.patch("/agreements/:id", async (req, res) => {
+      const { id } = req.params;
+      const { status } = req.body;
+      const result = await agreementsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status } }
+      );
+      res.json({ success: result.modifiedCount > 0 });
     });
 
     // Send a ping to confirm a successful connection
