@@ -4,6 +4,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SK_KEY);
 
 const port = process.env.PORT || 3000;
 const app = express();
@@ -49,6 +50,7 @@ async function run() {
   const agreementsCollection = db.collection("agreements");
   const announcementsCollection = db.collection("announcements");
   const couponsCollection = db.collection("coupons");
+  const paymentsCollection = db.collection("payments");
 
   try {
     // Generate jwt token
@@ -237,6 +239,37 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).send({ message: "Failed to fetch coupon" });
+      }
+    });
+
+    // Stripe Payment Intent
+    app.post("/create-payment-intent", async (req, res) => {
+      try {
+        const { amount } = req.body;
+        const convertedAmount = Math.round(amount / 110);
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: convertedAmount * 100, // amount in cents
+          currency: "usd",
+          automatic_payment_methods: { enabled: true },
+        });
+
+        res.send({ clientSecret: paymentIntent.client_secret });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Save Payment Record
+    app.post("/save-payment", async (req, res) => {
+      try {
+        const paymentData = req.body;
+        paymentData.date = new Date();
+        const result = await paymentsCollection.insertOne(paymentData);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to save payment" });
       }
     });
 
