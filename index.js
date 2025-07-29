@@ -145,6 +145,19 @@ async function run() {
       res.send(apartments);
     });
 
+    // Get a single apartment by ID
+    app.patch("/apartments/:apartmentNo", async (req, res) => {
+      const apartmentNo = req.params.apartmentNo;
+      const filter = { apartmentNo: apartmentNo };
+      const updateDoc = {
+        $set: {
+          status: "rented",
+        },
+      };
+      const result = await apartmentsCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // Get all announcements
     app.get("/announcements", async (req, res) => {
       const announcements = await announcementsCollection
@@ -206,17 +219,21 @@ async function run() {
     });
 
     // become a member request
-    app.patch("/become-member-request/:email", verifyToken, async (req, res) => {
-      const email = req.params.email;
-      const filter = { email: email };
-      const updateDoc = {
-        $set: {
-          status: "requested",
-        },
-      };
-      const result = await usersCollection.updateOne(filter, updateDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/become-member-request/:email",
+      verifyToken,
+      async (req, res) => {
+        const email = req.params.email;
+        const filter = { email: email };
+        const updateDoc = {
+          $set: {
+            status: "requested",
+          },
+        };
+        const result = await usersCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      }
+    );
 
     // Get all coupons
     app.get("/coupons", async (req, res) => {
