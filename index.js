@@ -163,7 +163,6 @@ async function run() {
     // Create an agreement request
     app.post("/agreements", async (req, res) => {
       const { userEmail, apartmentNo } = req.body;
-
       // Check if user already applied for this apartment
       const existing = await agreementsCollection.findOne({
         userEmail,
@@ -175,7 +174,6 @@ async function run() {
           message: "You have already applied for this apartment.",
         });
       }
-
       // Insert new agreement
       const result = await agreementsCollection.insertOne(req.body);
       res.json({ success: true, data: result });
@@ -196,6 +194,13 @@ async function run() {
         { $set: { status } }
       );
       res.json({ success: result.modifiedCount > 0 });
+    });
+
+    // Get user profile by email
+    app.get("/my-profile", async (req, res) => {
+      const email = req.query.email;
+      const profile = await agreementsCollection.findOne({ userEmail: email });
+      res.send(profile);
     });
 
     // Get all coupons
