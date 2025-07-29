@@ -322,6 +322,45 @@ async function run() {
       }
     });
 
+    // Admin Dashboard Stats
+    app.get("/admin-stats", async (req, res) => {
+      try {
+        const adminInfo = await usersCollection.findOne({ role: "admin" });
+
+        if (!adminInfo) {
+          return res.status(404).json({ message: "Admin not found" });
+        }
+
+        // Stats from DB
+        const totalUsers = await usersCollection.countDocuments();
+        const totalMembers = await usersCollection.countDocuments({
+          role: "member",
+        });
+        const totalRooms = await apartmentsCollection.countDocuments();
+        const availableRooms = await apartmentsCollection.countDocuments({
+          status: { $ne: "rented" },
+        });
+        const unavailableRooms = totalRooms - availableRooms;
+
+        res.json({
+          admin: {
+            name: adminInfo.name,
+            email: adminInfo.email,
+            image:
+              adminInfo?.image || "https://i.ibb.co/7bQQYkX/default-avatar.png",
+          },
+          totalRooms,
+          availableRooms,
+          unavailableRooms,
+          totalUsers,
+          totalMembers,
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch admin stats" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
