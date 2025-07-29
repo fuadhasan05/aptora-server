@@ -273,6 +273,25 @@ async function run() {
       }
     });
 
+    // Get Payments by Email
+    app.get("/api/payments", async (req, res) => {
+      try {
+        const { email } = req.query;
+        let filter = {};
+        if (email) {
+          filter.email = email;
+        }
+        // Convert cursor to array
+        const payments = await paymentsCollection
+          .find(filter)
+          .sort({ date: -1 })
+          .toArray();
+        res.json(payments);
+      } catch (err) {
+        res.status(500).json({ message: err.message });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
