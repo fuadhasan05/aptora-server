@@ -110,6 +110,31 @@ async function run() {
       res.send({ role: user?.role });
     });
 
+    // Get all users from DB
+    app.get("/all-users", verifyToken, async (req, res) => {
+      console.log(req.user);
+      const filter = {
+        email: { $ne: req?.user?.email },
+      };
+      const result = await usersCollection.find(filter).toArray();
+      res.send(result);
+    });
+
+    // Update user role
+    app.patch("/user/role/update/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const { role, status } = req.body;
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          role,
+          status: status || "varified",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // Get all apartments
     app.get("/apertments", async (req, res) => {
       const apartments = await apartmentsCollection.find().toArray();
