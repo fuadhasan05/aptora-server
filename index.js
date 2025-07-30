@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 const app = express();
 // middleware
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: ["http://localhost:5173", "https://aptora-25.web.app"],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -53,6 +53,33 @@ async function run() {
   const paymentsCollection = db.collection("payments");
 
   try {
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.user?.email;
+      const user = await usersCollection.findOne({
+        email,
+      });
+      console.log(user?.role);
+      if (!user || user?.role !== "admin")
+        return res
+          .status(403)
+          .send({ message: "Admin only Actions!", role: user?.role });
+
+      next();
+    };
+
+    const verifyMember = async (req, res, next) => {
+      const email = req?.user?.email;
+      const user = await usersCollection.findOne({
+        email,
+      });
+      console.log(user?.role);
+      if (!user || user?.role !== "member")
+        return res
+          .status(403)
+          .send({ message: "Member only Actions!", role: user?.role });
+
+      next();
+    };
     // Generate jwt token
     app.post("/jwt", async (req, res) => {
       const email = req.body;
@@ -105,7 +132,7 @@ async function run() {
     });
 
     // get a user's role
-    app.get("/user/role/:email", async (req, res) => {
+    app.get("/user/role/:email",verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const user = await usersCollection.findOne({ email });
       if (!user) {
@@ -115,7 +142,7 @@ async function run() {
     });
 
     // Get all users from DB
-    app.get("/all-users", verifyToken, async (req, res) => {
+    app.get("/all-users", verifyToken, verifyAdmin, async (req, res) => {
       console.log(req.user);
       const filter = {
         email: { $ne: req?.user?.email },
@@ -125,7 +152,7 @@ async function run() {
     });
 
     // Update user role
-    app.patch("/user/role/update/:email", verifyToken, async (req, res) => {
+    app.patch("/user/role/update/:email", verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const { role, status } = req.body;
       const filter = { email: email };
@@ -168,7 +195,7 @@ async function run() {
     });
 
     // Post an announcement
-    app.post("/announcements", verifyToken, async (req, res) => {
+    app.post("/announcements", async (req, res) => {
       const announcement = req.body;
       announcement.date = new Date();
       const result = await announcementsCollection.insertOne(announcement);
@@ -195,13 +222,13 @@ async function run() {
     });
 
     // Get all agreement requests
-    app.get("/agreements", async (req, res) => {
+    app.get("/agreements", verifyToken, verifyAdmin, async (req, res) => {
       const agreements = await agreementsCollection.find().toArray();
       res.json(agreements);
     });
 
     // Accept an agreement request
-    app.patch("/agreements/:id", async (req, res) => {
+    app.patch("/agreements/:id", verifyToken, verifyAdmin, async (req, res) => {
       const { id } = req.params;
       const { status } = req.body;
       const result = await agreementsCollection.updateOne(
@@ -212,7 +239,7 @@ async function run() {
     });
 
     // Get user profile by email
-    app.get("/my-profile", async (req, res) => {
+    app.get("/my-profile", verifyToken,  async (req, res) => {
       const email = req.query.email;
       const profile = await agreementsCollection.findOne({ userEmail: email });
       res.send(profile);
@@ -221,7 +248,7 @@ async function run() {
     // become a member request
     app.patch(
       "/become-member-request/:email",
-      verifyToken,
+      verifyToken, verifyMember,
       async (req, res) => {
         const email = req.params.email;
         const filter = { email: email };
@@ -304,7 +331,7 @@ async function run() {
     });
 
     // Get Payments by Email
-    app.get("/api/payments", async (req, res) => {
+    app.get("/api/payments", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const { email } = req.query;
         let filter = {};
@@ -323,7 +350,7 @@ async function run() {
     });
 
     // Admin Dashboard Stats
-    app.get("/admin-stats", async (req, res) => {
+    app.get("/admin-stats", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const adminInfo = await usersCollection.findOne({ role: "admin" });
 
