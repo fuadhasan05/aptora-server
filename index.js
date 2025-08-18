@@ -11,7 +11,8 @@ const app = express();
 // middleware
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://aptora-25.web.app"
+  // "https://aptora-25.web.app",
+  "https://sharebite25.web.app",
 ];
 const corsOptions = {
   origin: function (origin, callback) {
@@ -114,7 +115,7 @@ async function run() {
     });
 
     // get a user's role
-    app.get("/user/role/:email",verifyToken,  async (req, res) => {
+    app.get("/user/role/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const user = await usersCollection.findOne({ email });
       if (!user) {
@@ -124,7 +125,7 @@ async function run() {
     });
 
     // Get all users from DB
-    app.get("/all-users", verifyToken,  async (req, res) => {
+    app.get("/all-users", verifyToken, async (req, res) => {
       console.log(req.user);
       const filter = {
         email: { $ne: req?.user?.email },
@@ -134,7 +135,7 @@ async function run() {
     });
 
     // Update user role
-    app.patch("/user/role/update/:email", verifyToken,  async (req, res) => {
+    app.patch("/user/role/update/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const { role, status } = req.body;
       const filter = { email: email };
@@ -204,13 +205,13 @@ async function run() {
     });
 
     // Get all agreement requests
-    app.get("/agreements", verifyToken,  async (req, res) => {
+    app.get("/agreements", verifyToken, async (req, res) => {
       const agreements = await agreementsCollection.find().toArray();
       res.json(agreements);
     });
 
     // Accept an agreement request
-    app.patch("/agreements/:id", verifyToken,  async (req, res) => {
+    app.patch("/agreements/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const { status } = req.body;
       const result = await agreementsCollection.updateOne(
@@ -221,7 +222,7 @@ async function run() {
     });
 
     // Get user profile by email
-    app.get("/my-profile", verifyToken,  async (req, res) => {
+    app.get("/my-profile", verifyToken, async (req, res) => {
       const email = req.query.email;
       const profile = await agreementsCollection.findOne({ userEmail: email });
       res.send(profile);
@@ -313,7 +314,7 @@ async function run() {
     });
 
     // Get Payments by Email
-    app.get("/api/payments", verifyToken,  async (req, res) => {
+    app.get("/api/payments", verifyToken, async (req, res) => {
       try {
         const { email } = req.query;
         let filter = {};
@@ -332,7 +333,7 @@ async function run() {
     });
 
     // Admin Dashboard Stats
-    app.get("/admin-stats",  async (req, res) => {
+    app.get("/admin-stats", async (req, res) => {
       try {
         const adminInfo = await usersCollection.findOne({ role: "admin" });
 
@@ -367,6 +368,159 @@ async function run() {
       } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Failed to fetch admin stats" });
+      }
+    });
+
+    // Dashboard Stats - Comprehensive statistics endpoint (public access)
+    app.get("/dashboard-stats", async (req, res) => {
+      try {
+        // User statistics
+        const totalUsers = await usersCollection.countDocuments();
+        const totalMembers = await usersCollection.countDocuments({
+          role: "member",
+        });
+        const activeUsers = await usersCollection.countDocuments({
+          status: "varified",
+        });
+        const pendingRequests = await usersCollection.countDocuments({
+          status: "requested",
+        });
+
+        // Apartment statistics
+        const totalApartments = await apartmentsCollection.countDocuments();
+        const availableApartments = await apartmentsCollection.countDocuments({
+          $or: [{ status: "" }, { status: { $exists: false } }],
+        });
+        const rentedApartments = await apartmentsCollection.countDocuments({
+          status: "rented",
+        });
+
+        // Agreement statistics
+        const totalAgreements = await agreementsCollection.countDocuments();
+        const acceptedAgreements = await agreementsCollection.countDocuments({
+          status: "accepted",
+        });
+        const pendingAgreements = await agreementsCollection.countDocuments({
+          status: "pending",
+        });
+        const rejectedAgreements = await agreementsCollection.countDocuments({
+          status: "rejected",
+        });
+
+        // Payment statistics
+        const totalPayments = await paymentsCollection.countDocuments();
+
+        const paymentsCursor = await paymentsCollection.aggregate([
+          {
+            $group: {
+              _id: null,
+              totalAmount: { $sum: "$rent" }, // Changed from $amount to $rent
+              averagePayment: { $avg: "$rent" },
+              minPayment: { $min: "$rent" },
+              maxPayment: { $max: "$rent" },
+            },
+          },
+        ]);
+
+        const paymentStats = await paymentsCursor.next();
+        const totalRevenue = paymentStats ? paymentStats.totalAmount : 0;
+        const averagePayment = paymentStats ? paymentStats.averagePayment : 0;
+        const minPayment = paymentStats ? paymentStats.minPayment : 0;
+        const maxPayment = paymentStats ? paymentStats.maxPayment : 0;
+
+        // Additional statistics by month
+        const monthlyStatsCursor = await paymentsCollection.aggregate([
+          {
+            $group: {
+              _id: "$month", // Group by month
+              total: { $sum: "$rent" },
+              count: { $sum: 1 },
+              apartments: { $addToSet: "$room" }, // Get unique apartments
+            },
+          },
+          { $sort: { _id: 1 } }, // Sort by month
+        ]);
+
+        const monthlyStats = await monthlyStatsCursor.toArray();
+
+        // Coupon usage statistics
+        const couponStatsCursor = await paymentsCollection.aggregate([
+          {
+            $match: { coupon: { $exists: true, $ne: "" } }, // Only documents with coupons
+          },
+          {
+            $group: {
+              _id: "$coupon",
+              totalDiscounts: { $sum: "$rent" },
+              count: { $sum: 1 },
+            },
+          },
+        ]);
+        const couponStats = await couponStatsCursor.toArray();
+
+        // Recent activities
+        const recentAnnouncements = await announcementsCollection
+          .find()
+          .sort({ date: -1 })
+          .limit(5)
+          .toArray();
+
+        const recentPayments = await paymentsCollection
+          .find()
+          .sort({ date: -1 })
+          .limit(5)
+          .toArray();
+
+        // Admin info
+        const adminInfo = await usersCollection.findOne(
+          { role: "admin" },
+          {
+            projection: { name: 1, email: 1, image: 1 },
+          }
+        );
+
+        // Format the response
+        const dashboardStats = {
+          overview: {
+            users: totalUsers,
+            members: totalMembers,
+            activeUsers,
+            pendingRequests,
+            apartments: totalApartments,
+            availableApartments,
+            rentedApartments,
+            totalRevenue,
+          },
+          agreements: {
+            total: totalAgreements,
+            accepted: acceptedAgreements,
+            pending: pendingAgreements,
+            rejected: rejectedAgreements,
+          },
+          payments: {
+            totalTransactions: totalPayments,
+            totalRevenue,
+          },
+          recentActivities: {
+            announcements: recentAnnouncements,
+            payments: recentPayments,
+          },
+          adminInfo: {
+            name: adminInfo?.name || "Admin",
+            email: adminInfo?.email || "",
+            image:
+              adminInfo?.image || "https://i.ibb.co/7bQQYkX/default-avatar.png",
+          },
+          timestamp: new Date(),
+        };
+
+        res.json(dashboardStats);
+      } catch (err) {
+        console.error("Failed to fetch dashboard stats:", err);
+        res.status(500).json({
+          message: "Failed to fetch dashboard statistics",
+          error: err.message,
+        });
       }
     });
 
