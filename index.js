@@ -11,8 +11,7 @@ const app = express();
 // middleware
 const allowedOrigins = [
   "http://localhost:5173",
-  // "https://aptora-25.web.app",
-  "https://sharebite25.web.app",
+  "https://aptora-25.web.app",
 ];
 const corsOptions = {
   origin: function (origin, callback) {
